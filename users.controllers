@@ -1,0 +1,154 @@
+
+const usersCtrl = {};
+
+const passport = require('passport');
+
+const User = require('../models/User');
+
+const express = require('express');
+const bodyParser = require('body-parser');
+
+const app = express();
+app.use(bodyParser.urlencoded({ extended: false }));
+
+const Web3 = require('web3');
+const web3 = new Web3(new Web3.providers.HttpProvider('http://0.0.0.0:8545'));
+const fs = require('fs');
+const contractData = JSON.parse(fs.readFileSync('./build/contracts/Contract.json', 'utf8'));
+const abi = contractData.abi;
+
+const contractAddress = '0xe47F9CCc114Fc550B852ff37b92d8FA724dAD29A';
+const contractInstance = new web3.eth.Contract(abi, contractAddress);
+const  privateKey = '26746dec4cb0341e043d41448c52dd043793137bce988c262dacb424a15a4a6b';
+
+usersCtrl.renderSingUpForm = (req, res) => {
+    res.render('users/signup');
+};
+
+usersCtrl.signup = async (req, res) => {
+    res.render('users/signup')
+};
+
+// const errors = [];
+// const { name, email, password, confirm_password } = req.body;
+
+//     const len = email.length;
+//     //const part = email.slice(9);
+//     const end = email.endsWith("ce.pucmm.edu.do");
+//    const num = Number(email.slice(0, 8));
+
+//     //numEval =  Number(email.slice(0,1));
+//     console.log(num);
+//     // console.log(part);
+//     console.log(len);
+
+
+
+// // //Correo de estudiantes
+// if( len !=24  ||  end != true || num == NaN ){
+//      errors.push({ text: 'El correo ingresado no es valido' });
+
+// }
+// // // // }else if(num != NaN){
+// // // //     errors.push({ text: 'El correo profesoral ingresado no es valido' });
+// // // // }
+
+//Correo de Profesores
+
+/*
+if (password != confirm_password) {
+    errors.push({ text: 'Las contraseñas no coinciden' });
+}
+if (password.length < 4) {
+    errors.push({ text: 'La contraseña debe ser mayor a 4 caracteres' });
+}
+if (errors.length > 0) {
+    res.render('users/signup', {
+        errors,
+        name,
+        email
+    })
+} else {
+    const emailUser = await User.findOne({ email: email });
+    if (emailUser) {
+        req.flash('error_msg', 'El correo ya se encuentra registrado');
+        res.redirect('/users/signup');
+    } else {
+        const newUser = new User({ name, email, password })
+        newUser.password = await newUser.encryptPassword(password);
+        await newUser.save();
+        req.flash('success_msg', 'Estas registrado');
+        res.redirect('/users/signin');
+    }
+}
+}; */
+
+usersCtrl.renderSinginForm = (req, res) => {
+    res.render('users/signin');
+
+
+};
+
+usersCtrl.signin = async (req, res) => {
+
+    const matricula = req.body.matricula;
+    const password = req.body.password;
+ 
+    web3.eth.accounts.signTransaction({
+        to: contractAddress,
+        gas: 2000000,
+        data: contractInstance.methods.inicio_sesion(matricula, password).encodeABI(),
+      }, privateKey).then(signedTx => {
+        web3.eth.sendSignedTransaction(signedTx.rawTransaction).on('receipt', receipt => {
+          console.log(receipt);
+      
+          // Aquí puede verificar el valor devuelto por la función inicio_sesion
+          if (receipt.status == true ) {
+            // El usuario está autorizado
+            res.redirect('/dashboard');
+          } else {
+            // El usuario no está autorizado
+            res.render('users/signin', { error: 'Credenciales inválidas' });
+            console.log(error);
+          }
+        });
+      }).catch(error => {
+        console.error(error);
+      });
+
+}
+
+//     await contractInstance.methods.inicio_sesion(matricula, password)
+//   .send({ from: '0xe47F9CCc114Fc550B852ff37b92d8FA724dAD29A', gas: 3000000 })
+//   .then((receipt) => {
+//     console.log(receipt);
+//   })
+//   .catch((error) => {
+//     console.error(error);
+//   });
+   
+
+
+
+
+ //inicio_sesion(matricula, pass)
+//  console.log(matricula);
+//  console.log(req.body.password);
+
+// usersCtrl.signin = passport.authenticate('local', {
+//     //failureRedirect: '/users/signin',
+//     successRedirect: '/dashboard',
+//    // failureFlash: true
+// });
+
+usersCtrl.logout = (req, res) => {
+    req.logout((err) => {
+
+        req.flash('success_msg', 'Acabas de salir');
+        res.redirect('/users/signin');
+    });
+
+};
+
+
+module.exports = usersCtrl;
